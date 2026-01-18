@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FRACTION CONVERTING HACK - Umrechnungsspiel zum Umrechnen von Brüchen und Dezimalzahlen</title>
+    <title>CYBER HACK - Math Battle</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Roboto Mono für bessere Lesbarkeit der Zahlen, Rajdhani für das Interface -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -222,6 +222,13 @@
         }
 
         /* Fraction styling */
+        .fraction-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
         .fraction {
             display: inline-block;
             text-align: center;
@@ -240,6 +247,12 @@
             border-top: 0px;
             font-weight: 500;
         }
+        
+        /* Mixed Number Integer Part */
+        .mixed-int {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center">
@@ -249,7 +262,7 @@
         <div class="w-full max-w-[1600px] mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
             <!-- Branding & Mode -->
             <div class="flex items-center gap-4 shrink-0">
-                <h1 class="font-hud text-2xl text-green-400 font-bold border-r pr-4 border-slate-700 whitespace-nowrap">BRÜCHE HACKER</h1>
+                <h1 class="font-hud text-2xl text-green-400 font-bold border-r pr-4 border-slate-700 whitespace-nowrap">CYBER HACK</h1>
                 <div class="flex bg-slate-800 rounded p-1">
                     <button onclick="setMode('print')" id="btnPrintMode" class="px-4 py-1 rounded font-hud font-bold text-sm bg-green-500 text-black">DRUCK</button>
                     <button onclick="setMode('digital')" id="btnDigitalMode" class="px-4 py-1 rounded font-hud font-bold text-sm text-slate-400 hover:text-white">DIGITAL BATTLE</button>
@@ -259,7 +272,7 @@
             <!-- Game Settings -->
             <div class="flex flex-wrap justify-center xl:justify-end items-center gap-3 w-full">
                 
-                <div class="flex flex-col items-start min-w-[160px]">
+                <div class="flex flex-col items-start min-w-[140px]">
                     <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">SCHWIERIGKEIT</label>
                     <select id="levelSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-green-400 w-full focus:outline-none focus:border-green-500">
                         <option value="1">Level 1 (Tausendstel)</option>
@@ -268,7 +281,7 @@
                     </select>
                 </div>
                 
-                <div class="flex flex-col items-start min-w-[160px]">
+                <div class="flex flex-col items-start min-w-[140px]">
                     <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">AUFGABEN</label>
                     <select id="typeSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-blue-400 w-full focus:outline-none focus:border-blue-500">
                         <option value="mix">Gemischt</option>
@@ -277,8 +290,17 @@
                     </select>
                 </div>
 
+                <!-- Mixed Notation Toggle -->
+                <div class="flex flex-col items-start min-w-[120px]">
+                    <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">DARSTELLUNG</label>
+                    <label class="flex items-center gap-2 text-xs font-tech text-gray-300 cursor-pointer h-[34px] px-2 bg-slate-800 border border-slate-700 rounded w-full hover:bg-slate-700">
+                        <input type="checkbox" id="mixedNotationCheck" class="accent-green-500 w-4 h-4">
+                        Gemischte Zahl
+                    </label>
+                </div>
+
                 <!-- Turn Mode Selector -->
-                <div class="flex flex-col items-start min-w-[160px]" id="turnModeContainer" style="display:none;">
+                <div class="flex flex-col items-start min-w-[140px]" id="turnModeContainer" style="display:none;">
                     <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">PROTOKOLL</label>
                     <select id="turnModeSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-yellow-400 w-full focus:outline-none focus:border-yellow-500">
                         <option value="sync">SYNC (Wechsel)</option>
@@ -328,7 +350,7 @@
         <!-- Print Header (Compact) -->
         <div class="border-b-4 border-black pb-2 mb-4 flex justify-between items-end print-ui-only">
             <div>
-                <h1 class="font-hud text-4xl font-bold tracking-tighter">CYBER HACK <span class="text-lg font-normal text-gray-600 block">Spiel zum Umwandeln von Brüchen und Dezimalzahlen</span></h1>
+                <h1 class="font-hud text-4xl font-bold tracking-tighter">CYBER HACK <span class="text-lg font-normal text-gray-600 block">DATA DECRYPTION PROTOCOL</span></h1>
             </div>
             <div class="text-right">
                 <div class="font-tech border-2 border-black px-2 py-1 text-sm font-bold uppercase" id="printLevelLabel">Level 1</div>
@@ -341,7 +363,7 @@
             Spielt zu zweit (Rot vs. Blau). 
             1. Wählt eine Aufgabe aus dem <strong>Daten-Raster</strong> (unten). 
             2. Sucht die Lösung im <strong>Netzwerk</strong> (oben). 
-            3. Markiert das Lösungsfeld in deiner Farbe, wenn die Umrechnung richtig war. Wer am Ende die meisten Paare hat, gewinnt!
+            3. Markiert das Lösungsfeld in eurer Farbe. Wer die längste zusammenhängende Datenkette (Snake) bildet, gewinnt!
         </div>
 
         <!-- Snake Board (Top) -->
@@ -370,7 +392,7 @@
         </div>
 
         <div class="text-center text-[10px] font-mono text-gray-400 mt-2 print-ui-only">
-            GENERATED_BY_LUKAS_EWALD_ESZC // SYSTEM_READY
+            GENERATED_BY_AI // SYSTEM_READY
         </div>
     </div>
 
@@ -417,8 +439,37 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
+        // --- RENDERING HELPERS ---
+
         function createFraction(n, d) {
             return `<div class="fraction"><span class="numerator">${n}</span><span class="denominator">${d}</span></div>`;
+        }
+
+        function createMixedFraction(intPart, n, d) {
+            return `
+                <div class="fraction-container">
+                    <span class="mixed-int">${intPart}</span>
+                    <div class="fraction">
+                        <span class="numerator">${n}</span>
+                        <span class="denominator">${d}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper to render content based on item logic
+        function renderContent(item) {
+            if (item.mode === 'frac') {
+                // Task was fraction, Solution is decimal
+                // Wait, if mode is 'frac', the ITEM is the QUESTION. Question = Fraction.
+                // The ANSWER (Snake) is Decimal.
+                
+                // Let's differentiate rendering context:
+                // We need to know if we are rendering the Fraction part or the Decimal part.
+                // But the generateGame logic puts content into grids.
+                return "ERROR"; 
+            }
+            return "ERROR";
         }
 
         function setMode(mode) {
@@ -584,40 +635,31 @@
             }
         }
 
-        function generateProblem(level) {
+        function generateProblem(level, enableMixed) {
              let denominator, numerator;
              
              // --- BASE GENERATION ---
              if (level === 1) {
-                // Simple tenths/hundredths/thousandths
                 const denoms = [10, 100, 1000];
                 denominator = denoms[Math.floor(Math.random()*denoms.length)];
                 numerator = Math.random() < 0.8 ? getRandomInt(1, denominator - 1) : getRandomInt(denominator + 1, denominator * 2);
              } 
              else if (level >= 2) {
-                // Levels 2 & 3: Mixed denominators including 10000
                 const denoms = [10, 100, 1000, 10000];
                 denominator = denoms[Math.floor(Math.random()*denoms.length)];
                 
                 if (level === 2) {
                     numerator = Math.random() < 0.5 ? getRandomInt(1, denominator) : getRandomInt(denominator + 1, denominator * 4);
                 } else {
-                    // Level 3: Higher range
                     numerator = Math.random() < 0.3 ? getRandomInt(1, denominator-1) : getRandomInt(denominator+1, denominator*10);
                 }
              }
 
              if(numerator <= 0) numerator = 1;
 
-             // --- EXPANSION LOGIC (ERWEITERN) ---
-             // Only for Level 2 and 3
-             // "Hier können Dezimalzahlen beliebig auf Dezimalbrüche (10, 100, 1000, 10000) erweitert werden."
-             // This means if we have 3/10, we might display 30/100 or 3000/10000.
-             
+             // --- EXPANSION LOGIC ---
              if (level >= 2) {
-                 // 40% Chance of expansion
                  if (Math.random() < 0.4) {
-                     // Determine max expansion possible (max denominator 10000)
                      let possibleMultipliers = [];
                      if (denominator <= 1000) possibleMultipliers.push(10);
                      if (denominator <= 100) possibleMultipliers.push(100);
@@ -632,19 +674,29 @@
              }
              
              let val = numerator / denominator;
-             // Calculate decimal string for display
-             // We want the simple decimal (e.g. 30/100 -> 0,3)
-             // Using toPrecision/toFixed usually trims, but let's be safe
-             // NOTE: 0.30 is mathematically 0.3. The game matches by value.
-             let decStr = val.toFixed(4).replace('.', ','); // Fixed 4 for max precision
              
-             // Clean trailing zeros for the Decimal String presentation (0,3000 -> 0,3)
+             // --- MIXED NOTATION LOGIC ---
+             let useMixed = false;
+             let intPart = 0;
+             let remNum = numerator;
+             
+             // Only if enabled, value > 1, not integer, and coin toss 50%
+             if (enableMixed && val > 1 && val % 1 !== 0) {
+                 if (Math.random() < 0.5) {
+                     useMixed = true;
+                     intPart = Math.floor(val);
+                     remNum = numerator % denominator;
+                     // We keep the original denominator.
+                 }
+             }
+
+             let decStr = val.toFixed(4).replace('.', ','); 
              if(decStr.indexOf(',') > -1) {
                  while(decStr.endsWith('0')) decStr = decStr.slice(0,-1);
                  if(decStr.endsWith(',')) decStr = decStr.slice(0,-1);
              }
 
-             return { num: numerator, den: denominator, decStr, val };
+             return { num: numerator, den: denominator, decStr, val, useMixed, intPart, remNum };
         }
 
         function generateGame() {
@@ -657,13 +709,14 @@
 
             const level = parseInt(document.getElementById('levelSelect').value);
             const type = document.getElementById('typeSelect').value;
+            const mixedEnabled = document.getElementById('mixedNotationCheck').checked;
             
             document.getElementById('printLevelLabel').innerText = "LEVEL 0" + level;
 
             // Generate Data
             let items = [];
             for(let i=0; i<TOTAL_CELLS; i++) {
-                let p = generateProblem(level);
+                let p = generateProblem(level, mixedEnabled);
                 // Determine Mode
                 let mode = type;
                 if(type === 'mix') mode = Math.random() < 0.5 ? 'frac' : 'dec';
@@ -689,10 +742,20 @@
             
             // 1. SNAKE GRID (Solutions)
             snakeItems.forEach(item => {
-                // Content based on mode
-                // if p.mode is 'frac', task was fraction, so solution is decimal
-                // if p.mode is 'dec', task was decimal, so solution is fraction
-                let content = item.mode === 'frac' ? item.decStr : createFraction(item.num, item.den);
+                // if p.mode is 'frac', task was fraction, so SOLUTION is DECIMAL
+                // if p.mode is 'dec', task was decimal, so SOLUTION is FRACTION
+                
+                let content = "";
+                if (item.mode === 'frac') {
+                    content = item.decStr;
+                } else {
+                    // Show Fraction (Solution)
+                    if (item.useMixed) {
+                        content = createMixedFraction(item.intPart, item.remNum, item.den);
+                    } else {
+                        content = createFraction(item.num, item.den);
+                    }
+                }
                 
                 // Print Element
                 let divP = document.createElement('div');
@@ -710,7 +773,17 @@
 
             // 2. TASK GRID (Questions)
             taskItems.forEach(item => {
-                let content = item.mode === 'frac' ? createFraction(item.num, item.den) : item.decStr;
+                let content = "";
+                if (item.mode === 'frac') {
+                    // Show Fraction (Question)
+                    if (item.useMixed) {
+                        content = createMixedFraction(item.intPart, item.remNum, item.den);
+                    } else {
+                        content = createFraction(item.num, item.den);
+                    }
+                } else {
+                    content = item.decStr;
+                }
                 
                 // Print Element
                 let divP = document.createElement('div');
