@@ -31,6 +31,7 @@
             display: grid;
             grid-template-columns: repeat(8, 1fr);
             gap: 4px;
+            width: 100%;
         }
 
         /* --- CELL STYLING (The Cyber Look) --- */
@@ -366,7 +367,17 @@
             3. Markiert das Lösungsfeld in eurer Farbe. Wer die längste zusammenhängende Datenkette (Snake) bildet, gewinnt!
         </div>
 
-        <!-- Snake Board (Top) -->
+        <!-- Task Board (Now Top) -->
+        <div class="print-layout-section">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="h-2 w-2 border-2 border-black"></div>
+                <h2 class="font-tech text-lg font-bold uppercase">Daten-Raster (Aufgaben)</h2>
+                <div class="h-[1px] bg-black flex-grow border-t border-dashed"></div>
+            </div>
+            <div id="taskBoardPrint" class="task-grid flex-grow"></div>
+        </div>
+
+        <!-- Snake Board (Now Bottom) -->
         <div class="flex-grow mb-4 relative print-layout-section">
             <div class="flex items-center gap-2 mb-1">
                 <div class="h-2 w-2 bg-black"></div>
@@ -379,16 +390,6 @@
                 <svg id="snakeLines" class="absolute inset-0 w-full h-full pointer-events-none opacity-20" style="z-index: 0;"></svg>
                 <div id="snakeBoardPrint" class="snake-grid flex-grow"></div>
             </div>
-        </div>
-
-        <!-- Task Board (Bottom) -->
-        <div class="print-layout-section">
-            <div class="flex items-center gap-2 mb-1">
-                <div class="h-2 w-2 border-2 border-black"></div>
-                <h2 class="font-tech text-lg font-bold uppercase">Daten-Raster (Aufgaben)</h2>
-                <div class="h-[1px] bg-black flex-grow border-t border-dashed"></div>
-            </div>
-            <div id="taskBoardPrint" class="task-grid flex-grow"></div>
         </div>
 
         <div class="text-center text-[10px] font-mono text-gray-400 mt-2 print-ui-only">
