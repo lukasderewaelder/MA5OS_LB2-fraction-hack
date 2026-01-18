@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRACTION CONVERTING HACK - Umrechnungsspiel zum Umrechnen von Brüchen und Dezimalzahlen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Roboto Mono für bessere Lesbarkeit der Zahlen, Rajdhani für das Interface -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME FONTS --- */
+        .font-tech { font-family: 'Roboto Mono', monospace; } /* Lesbarer für Schüler */
+        .font-hud { font-family: 'Rajdhani', sans-serif; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #f0f0f0; /* Light gray for screen, white for print */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* --- GRID LAYOUTS --- */
+        .snake-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            width: 100%;
+        }
+        
+        .task-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+        }
+
+        /* --- CELL STYLING (The Cyber Look) --- */
+        /* Common Cell Style */
+        .cell {
+            aspect-ratio: 1.2;
+            background: white;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Roboto Mono', monospace; /* Neue Schriftart hier anwenden */
+            font-size: 1rem; /* Etwas größer für bessere Lesbarkeit */
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        /* Hexagon-ish clip for Cyber feel (optional, simplified to cut corners for print safety) */
+        .cyber-border {
+            clip-path: polygon(
+                0% 0%, 
+                100% 0%, 
+                100% 100%, 
+                10% 100%, 
+                0% 90%
+            );
+        }
+
+        .snake-cell {
+            border: 2px solid #000;
+            font-weight: bold;
+        }
+
+        .snake-cell::before {
+            /* Small decoration corner */
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 6px; height: 6px;
+            background: black;
+            clip-path: polygon(100% 0, 0 0, 100% 100%);
+        }
+
+        .task-cell {
+            border: 1px dashed #666;
+            color: #444;
+        }
+
+        /* --- DIGITAL MODE INTERACTION --- */
+        .interactive-mode .cell {
+            cursor: pointer;
+        }
+        
+        /* Hover Effects */
+        .interactive-mode .cell:hover {
+            background-color: #e5e5e5;
+            border-color: #000;
+            transform: translateY(-2px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+
+        /* Turn-based Colors */
+        .player-red .cell:hover { border-color: #ef4444; color: #dc2626; }
+        .player-blue .cell:hover { border-color: #3b82f6; color: #2563eb; }
+
+        /* Selection States */
+        .selected {
+            background-color: #ddd !important;
+            border: 2px solid #000 !important;
+            transform: scale(0.95);
+        }
+
+        /* Matches */
+        .matched-red {
+            background-color: #fee2e2 !important; /* Red-100 */
+            border-color: #dc2626 !important;
+            color: #991b1b !important;
+            pointer-events: none;
+        }
+        .matched-blue {
+            background-color: #dbeafe !important; /* Blue-100 */
+            border-color: #2563eb !important;
+            color: #1e40af !important;
+            pointer-events: none;
+        }
+
+        .wrong {
+            background-color: #fee2e2;
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        /* --- PRINT OPTIMIZATION --- */
+        @media print {
+            @page {
+                size: A4;
+                margin: 5mm; /* Very tight margin */
+            }
+            body {
+                background: white;
+                height: 100vh; /* Full viewport height */
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-container {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                /* Flexbox to stretch vertically */
+                height: 285mm !important; /* Explicitly nearly full A4 height minus margins */
+                display: flex !important;
+                flex-direction: column;
+                justify-content: space-between; /* Push sections apart */
+            }
+            
+            /* Make sections grow to fill space */
+            .print-layout-section {
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                margin-bottom: 5mm;
+            }
+            
+            /* Make grids grow */
+            .snake-grid, .task-grid {
+                flex-grow: 1;
+                gap: 4px;
+            }
+
+            .cell {
+                font-size: 11pt; /* Larger font for print */
+                height: 100%; /* Fill the grid cell height */
+                aspect-ratio: auto; /* Allow stretching */
+                padding: 0;
+            }
+
+            h1 { font-size: 2.5rem !important; }
+            h2 { font-size: 1.4rem !important; margin-bottom: 0.5rem !important; }
+            p, li { font-size: 1rem !important; }
+            
+            /* Hide Digital UI elements */
+            .digital-ui-only { display: none !important; }
+            .print-ui-only { display: block !important; }
+        }
+
+        /* --- DIGITAL LAYOUT --- */
+        .digital-layout {
+            display: none; /* Hidden by default */
+        }
+        
+        .interactive-mode .digital-layout {
+            display: flex;
+            flex-direction: row;
+            width: 95%; /* Breiter für weniger Scrolling */
+            max-width: none; /* Limitierung entfernen */
+            height: calc(100vh - 100px);
+            gap: 20px;
+            padding: 0 20px;
+            margin: 0 auto;
+        }
+        
+        .interactive-mode .print-layout {
+            display: none;
+        }
+
+        /* Digital Grid Update: 8 Spalten statt 6, um Höhe zu sparen */
+        .interactive-mode .snake-grid, 
+        .interactive-mode .task-grid {
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 6px;
+        }
+        
+        .interactive-mode .cell {
+            aspect-ratio: 1.5; /* Rectangular tiles on screen */
+            font-size: 1.1rem; /* Leicht angepasst */
+        }
+
+        /* Fraction styling */
+        .fraction {
+            display: inline-block;
+            text-align: center;
+            vertical-align: middle;
+            margin: 0 0.1em;
+        }
+        .fraction > span {
+            display: block;
+            padding: 0;
+        }
+        .fraction span.numerator {
+            border-bottom: 2px solid currentColor; /* Etwas dickerer Bruchstrich */
+            font-weight: 500;
+        }
+        .fraction span.denominator {
+            border-top: 0px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center">
+
+    <!-- CONTROLS -->
+    <div class="no-print bg-slate-900 w-full p-4 text-white shadow-lg sticky top-0 z-50 border-b border-slate-700">
+        <div class="w-full max-w-[1600px] mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
+            <!-- Branding & Mode -->
+            <div class="flex items-center gap-4 shrink-0">
+                <h1 class="font-hud text-2xl text-green-400 font-bold border-r pr-4 border-slate-700 whitespace-nowrap">BRÜCHE HACKER</h1>
+                <div class="flex bg-slate-800 rounded p-1">
+                    <button onclick="setMode('print')" id="btnPrintMode" class="px-4 py-1 rounded font-hud font-bold text-sm bg-green-500 text-black">DRUCK</button>
+                    <button onclick="setMode('digital')" id="btnDigitalMode" class="px-4 py-1 rounded font-hud font-bold text-sm text-slate-400 hover:text-white">DIGITAL BATTLE</button>
+                </div>
+            </div>
+
+            <!-- Game Settings -->
+            <div class="flex flex-wrap justify-center xl:justify-end items-center gap-3 w-full">
+                
+                <div class="flex flex-col items-start min-w-[160px]">
+                    <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">SCHWIERIGKEIT</label>
+                    <select id="levelSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-green-400 w-full focus:outline-none focus:border-green-500">
+                        <option value="1">Level 1 (Tausendstel)</option>
+                        <option value="2">Level 2 (Erweitert)</option>
+                        <option value="3">Level 3 (Experte)</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col items-start min-w-[160px]">
+                    <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">AUFGABEN</label>
+                    <select id="typeSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-blue-400 w-full focus:outline-none focus:border-blue-500">
+                        <option value="mix">Gemischt</option>
+                        <option value="frac">Brüche -> Dezimal</option>
+                        <option value="dec">Dezimal -> Brüche</option>
+                    </select>
+                </div>
+
+                <!-- Turn Mode Selector -->
+                <div class="flex flex-col items-start min-w-[160px]" id="turnModeContainer" style="display:none;">
+                    <label class="text-[10px] text-gray-400 font-tech font-bold mb-0.5">PROTOKOLL</label>
+                    <select id="turnModeSelect" class="bg-slate-800 border border-slate-700 text-sm px-3 py-1.5 rounded font-tech text-yellow-400 w-full focus:outline-none focus:border-yellow-500">
+                        <option value="sync">SYNC (Wechsel)</option>
+                        <option value="burst">BURST (Serie)</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 mt-4 xl:mt-0 items-end h-full pb-0.5">
+                    <button onclick="generateGame()" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-1.5 rounded text-sm font-bold transition h-[34px] border border-slate-600">
+                        RESET
+                    </button>
+                    <button onclick="window.print()" id="btnPrintAction" class="bg-white hover:bg-gray-200 text-black px-5 py-1.5 rounded text-sm font-bold transition h-[34px] border border-white">
+                        🖨️ DRUCKEN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIGITAL HUD (Scoreboard) -->
+    <div id="digitalHud" class="hidden w-full bg-slate-800 border-b-4 border-slate-900 p-2 mb-4 text-white font-hud">
+        <div class="w-full px-8 flex justify-between items-center">
+            
+            <!-- Player Red -->
+            <div id="pRedBox" class="flex flex-col items-center bg-slate-900 px-6 py-2 rounded border-l-4 border-red-500 w-48 transition-all opacity-50">
+                <span class="text-xs uppercase tracking-widest text-red-400">HACKER ROT</span>
+                <span class="text-4xl font-bold" id="scoreRed">0</span>
+            </div>
+
+            <!-- Status Center -->
+            <div class="text-center">
+                <div class="text-xs text-slate-400 mb-1">SYSTEM STATUS</div>
+                <div id="turnMessage" class="font-tech text-xl text-yellow-400 animate-pulse">WARTE AUF EINGABE...</div>
+            </div>
+
+            <!-- Player Blue -->
+            <div id="pBlueBox" class="flex flex-col items-center bg-slate-900 px-6 py-2 rounded border-r-4 border-blue-500 w-48 transition-all opacity-50">
+                <span class="text-xs uppercase tracking-widest text-blue-400">HACKER BLAU</span>
+                <span class="text-4xl font-bold" id="scoreBlue">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT CONTAINER (A4 Paper) -->
+    <div id="printContainer" class="page-container bg-white w-[210mm] p-[10mm] shadow-2xl mx-auto mb-10 flex flex-col items-stretch">
+        
+        <!-- Print Header (Compact) -->
+        <div class="border-b-4 border-black pb-2 mb-4 flex justify-between items-end print-ui-only">
+            <div>
+                <h1 class="font-hud text-4xl font-bold tracking-tighter">CYBER HACK <span class="text-lg font-normal text-gray-600 block">Spiel zum Umwandeln von Brüchen und Dezimalzahlen</span></h1>
+            </div>
+            <div class="text-right">
+                <div class="font-tech border-2 border-black px-2 py-1 text-sm font-bold uppercase" id="printLevelLabel">Level 1</div>
+            </div>
+        </div>
+
+        <!-- Compact Rules -->
+        <div class="border-l-4 border-black pl-3 py-1 mb-4 text-xs font-hud leading-tight text-gray-700 print-ui-only bg-gray-50">
+            <span class="font-bold bg-black text-white px-1">MISSION:</span> 
+            Spielt zu zweit (Rot vs. Blau). 
+            1. Wählt eine Aufgabe aus dem <strong>Daten-Raster</strong> (unten). 
+            2. Sucht die Lösung im <strong>Netzwerk</strong> (oben). 
+            3. Markiert das Lösungsfeld in deiner Farbe, wenn die Umrechnung richtig war. Wer am Ende die meisten Paare hat, gewinnt!
+        </div>
+
+        <!-- Snake Board (Top) -->
+        <div class="flex-grow mb-4 relative print-layout-section">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="h-2 w-2 bg-black"></div>
+                <h2 class="font-tech text-lg font-bold uppercase">Netzwerk (Lösungen)</h2>
+                <div class="h-[1px] bg-black flex-grow"></div>
+            </div>
+            
+            <!-- SVG Background for Snake Lines (Print Only) -->
+            <div class="relative flex-grow flex flex-col">
+                <svg id="snakeLines" class="absolute inset-0 w-full h-full pointer-events-none opacity-20" style="z-index: 0;"></svg>
+                <div id="snakeBoardPrint" class="snake-grid flex-grow"></div>
+            </div>
+        </div>
+
+        <!-- Task Board (Bottom) -->
+        <div class="print-layout-section">
+            <div class="flex items-center gap-2 mb-1">
+                <div class="h-2 w-2 border-2 border-black"></div>
+                <h2 class="font-tech text-lg font-bold uppercase">Daten-Raster (Aufgaben)</h2>
+                <div class="h-[1px] bg-black flex-grow border-t border-dashed"></div>
+            </div>
+            <div id="taskBoardPrint" class="task-grid flex-grow"></div>
+        </div>
+
+        <div class="text-center text-[10px] font-mono text-gray-400 mt-2 print-ui-only">
+            GENERATED_BY_LUKAS_EWALD_ESZC // SYSTEM_READY
+        </div>
+    </div>
+
+    <!-- DIGITAL CONTAINER (Widescreen Battle) -->
+    <div id="digitalContainer" class="digital-layout hidden">
+        
+        <!-- Left Side: Tasks (Data Source) -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow p-4 border-t-4 border-gray-400 overflow-y-auto">
+            <h2 class="font-tech text-gray-500 mb-4 text-center">/// QUELL-DATEN (AUFGABEN)</h2>
+            <div id="taskBoardDigital" class="task-grid"></div>
+        </div>
+
+        <!-- Center: Status/Decor (Optional visual separator) -->
+        <div class="w-2 bg-slate-200 rounded flex flex-col justify-center gap-2 items-center">
+            <div class="w-full h-2 bg-slate-300"></div>
+            <div class="w-full h-2 bg-slate-300"></div>
+            <div class="w-full h-2 bg-slate-300"></div>
+        </div>
+
+        <!-- Right Side: Snake (Target Network) -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow p-4 border-t-4 border-black overflow-y-auto">
+            <h2 class="font-tech text-black mb-4 text-center">/// ZIEL-NETZWERK (LÖSUNGEN)</h2>
+            <div id="snakeBoardDigital" class="snake-grid"></div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- GAME CONFIG ---
+        const ROWS = 6;
+        const COLS = 8;
+        const TOTAL_CELLS = ROWS * COLS;
+        
+        // --- STATE ---
+        let currentMode = 'print'; // 'print' or 'digital'
+        let turn = 'red'; // 'red' or 'blue'
+        let scores = { red: 0, blue: 0 };
+        let selection = null; // { type: 'task'|'snake', id: index, val: number, el: HTMLElement }
+        let isLocked = false;
+
+        // --- CORE FUNCTIONS ---
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function createFraction(n, d) {
+            return `<div class="fraction"><span class="numerator">${n}</span><span class="denominator">${d}</span></div>`;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            const body = document.body;
+            const printCont = document.getElementById('printContainer');
+            const digiCont = document.getElementById('digitalContainer');
+            const digiHud = document.getElementById('digitalHud');
+            const btnPrint = document.getElementById('btnPrintMode');
+            const btnDigi = document.getElementById('btnDigitalMode');
+            const printActionBtn = document.getElementById('btnPrintAction');
+            const turnModeContainer = document.getElementById('turnModeContainer');
+
+            if (mode === 'digital') {
+                body.classList.add('interactive-mode');
+                body.classList.remove('bg-white'); // Ensure screen background
+                
+                printCont.style.display = 'none';
+                digiCont.style.display = 'flex';
+                digiHud.classList.remove('hidden');
+                turnModeContainer.style.display = 'flex'; // Show Turn Mode Selector
+                
+                btnDigi.className = "px-4 py-1 rounded font-hud font-bold text-sm bg-blue-500 text-white shadow shadow-blue-500/50";
+                btnPrint.className = "px-4 py-1 rounded font-hud font-bold text-sm text-slate-400 hover:text-white";
+                printActionBtn.style.display = 'none'; // Hide actual print button in digital mode
+
+                // Reset Game for Digital
+                generateGame(); 
+
+            } else {
+                body.classList.remove('interactive-mode');
+                
+                printCont.style.display = 'flex';
+                digiCont.style.display = 'none';
+                digiHud.classList.add('hidden');
+                turnModeContainer.style.display = 'none'; // Hide Turn Mode Selector
+
+                btnPrint.className = "px-4 py-1 rounded font-hud font-bold text-sm bg-green-500 text-black shadow shadow-green-500/50";
+                btnDigi.className = "px-4 py-1 rounded font-hud font-bold text-sm text-slate-400 hover:text-white";
+                printActionBtn.style.display = 'block';
+
+                generateGame();
+            }
+        }
+
+        function updateTurnUI() {
+            const redBox = document.getElementById('pRedBox');
+            const blueBox = document.getElementById('pBlueBox');
+            const msg = document.getElementById('turnMessage');
+            const body = document.body;
+
+            document.getElementById('scoreRed').innerText = scores.red;
+            document.getElementById('scoreBlue').innerText = scores.blue;
+
+            // Remove old turn classes
+            body.classList.remove('player-red', 'player-blue');
+
+            if (turn === 'red') {
+                redBox.style.opacity = '1';
+                redBox.style.transform = 'scale(1.05)';
+                blueBox.style.opacity = '0.4';
+                blueBox.style.transform = 'scale(1)';
+                msg.innerText = "ROT IST AM ZUG // HACKT DAS SYSTEM";
+                msg.className = "font-tech text-xl text-red-500 animate-pulse";
+                body.classList.add('player-red');
+            } else {
+                blueBox.style.opacity = '1';
+                blueBox.style.transform = 'scale(1.05)';
+                redBox.style.opacity = '0.4';
+                redBox.style.transform = 'scale(1)';
+                msg.innerText = "BLAU IST AM ZUG // HACKT DAS SYSTEM";
+                msg.className = "font-tech text-xl text-blue-500 animate-pulse";
+                body.classList.add('player-blue');
+            }
+        }
+
+        function handleInteraction(type, val, element) {
+            if (currentMode !== 'digital' || isLocked) return;
+            if (element.classList.contains('matched-red') || element.classList.contains('matched-blue')) return;
+
+            // Deselect if clicking same
+            if (selection && selection.el === element) {
+                element.classList.remove('selected');
+                selection = null;
+                return;
+            }
+
+            element.classList.add('selected');
+
+            if (!selection) {
+                // First pick
+                selection = { type, val, el: element };
+            } else {
+                // Second pick
+                // Check if same type (Task+Task or Snake+Snake) -> Switch selection
+                if (selection.type === type) {
+                    selection.el.classList.remove('selected');
+                    selection = { type, val, el: element };
+                    return;
+                }
+
+                // Check Match
+                isLocked = true;
+                const match = Math.abs(selection.val - val) < 0.000001;
+
+                // Get Turn Mode
+                const turnProtocol = document.getElementById('turnModeSelect').value; // 'sync' or 'burst'
+
+                if (match) {
+                    // Match!
+                    const matchedClass = turn === 'red' ? 'matched-red' : 'matched-blue';
+                    selection.el.classList.remove('selected');
+                    element.classList.remove('selected');
+                    
+                    selection.el.classList.add(matchedClass);
+                    element.classList.add(matchedClass);
+                    
+                    scores[turn]++;
+                    
+                    // Winner Check
+                    if (scores.red + scores.blue === TOTAL_CELLS) {
+                        document.getElementById('turnMessage').innerText = scores.red > scores.blue ? "ROT GEWINNT!" : "BLAU GEWINNT!";
+                    } else {
+                        // Protocol Check
+                        if (turnProtocol === 'burst') {
+                            // BURST MODE: Keep turn on match
+                            document.getElementById('turnMessage').innerText = "ZUGRIFF ERFOLGREICH! BURST MODE AKTIV: NOCHMAL!";
+                            setTimeout(() => {
+                                isLocked = false;
+                                updateTurnUI(); // Visual refresh
+                            }, 1000);
+                        } else {
+                            // SYNC MODE: Switch turn even on match
+                            document.getElementById('turnMessage').innerText = "ZUGRIFF ERFOLGREICH! SYNC MODE: ZUGWECHSEL!";
+                            setTimeout(() => {
+                                selection = null;
+                                turn = turn === 'red' ? 'blue' : 'red'; // Switch
+                                updateTurnUI();
+                                isLocked = false;
+                            }, 1000);
+                        }
+                    }
+                    selection = null;
+
+                } else {
+                    // Fail
+                    selection.el.classList.add('wrong');
+                    element.classList.add('wrong');
+                    document.getElementById('turnMessage').innerText = "ZUGRIFF VERWEIGERT!";
+                    document.getElementById('turnMessage').className = "font-tech text-xl text-gray-500";
+
+                    setTimeout(() => {
+                        selection.el.classList.remove('selected', 'wrong');
+                        element.classList.remove('selected', 'wrong');
+                        selection = null;
+                        
+                        // Switch Turn (Always on fail)
+                        turn = turn === 'red' ? 'blue' : 'red';
+                        updateTurnUI();
+                        isLocked = false;
+                    }, 1200);
+                }
+            }
+        }
+
+        function generateProblem(level) {
+             let denominator, numerator;
+             
+             // --- BASE GENERATION ---
+             if (level === 1) {
+                // Simple tenths/hundredths/thousandths
+                const denoms = [10, 100, 1000];
+                denominator = denoms[Math.floor(Math.random()*denoms.length)];
+                numerator = Math.random() < 0.8 ? getRandomInt(1, denominator - 1) : getRandomInt(denominator + 1, denominator * 2);
+             } 
+             else if (level >= 2) {
+                // Levels 2 & 3: Mixed denominators including 10000
+                const denoms = [10, 100, 1000, 10000];
+                denominator = denoms[Math.floor(Math.random()*denoms.length)];
+                
+                if (level === 2) {
+                    numerator = Math.random() < 0.5 ? getRandomInt(1, denominator) : getRandomInt(denominator + 1, denominator * 4);
+                } else {
+                    // Level 3: Higher range
+                    numerator = Math.random() < 0.3 ? getRandomInt(1, denominator-1) : getRandomInt(denominator+1, denominator*10);
+                }
+             }
+
+             if(numerator <= 0) numerator = 1;
+
+             // --- EXPANSION LOGIC (ERWEITERN) ---
+             // Only for Level 2 and 3
+             // "Hier können Dezimalzahlen beliebig auf Dezimalbrüche (10, 100, 1000, 10000) erweitert werden."
+             // This means if we have 3/10, we might display 30/100 or 3000/10000.
+             
+             if (level >= 2) {
+                 // 40% Chance of expansion
+                 if (Math.random() < 0.4) {
+                     // Determine max expansion possible (max denominator 10000)
+                     let possibleMultipliers = [];
+                     if (denominator <= 1000) possibleMultipliers.push(10);
+                     if (denominator <= 100) possibleMultipliers.push(100);
+                     if (denominator <= 10) possibleMultipliers.push(1000);
+                     
+                     if (possibleMultipliers.length > 0) {
+                         const multiplier = possibleMultipliers[Math.floor(Math.random() * possibleMultipliers.length)];
+                         numerator *= multiplier;
+                         denominator *= multiplier;
+                     }
+                 }
+             }
+             
+             let val = numerator / denominator;
+             // Calculate decimal string for display
+             // We want the simple decimal (e.g. 30/100 -> 0,3)
+             // Using toPrecision/toFixed usually trims, but let's be safe
+             // NOTE: 0.30 is mathematically 0.3. The game matches by value.
+             let decStr = val.toFixed(4).replace('.', ','); // Fixed 4 for max precision
+             
+             // Clean trailing zeros for the Decimal String presentation (0,3000 -> 0,3)
+             if(decStr.indexOf(',') > -1) {
+                 while(decStr.endsWith('0')) decStr = decStr.slice(0,-1);
+                 if(decStr.endsWith(',')) decStr = decStr.slice(0,-1);
+             }
+
+             return { num: numerator, den: denominator, decStr, val };
+        }
+
+        function generateGame() {
+            // Reset State
+            scores = { red: 0, blue: 0 };
+            turn = 'red';
+            selection = null;
+            isLocked = false;
+            updateTurnUI();
+
+            const level = parseInt(document.getElementById('levelSelect').value);
+            const type = document.getElementById('typeSelect').value;
+            
+            document.getElementById('printLevelLabel').innerText = "LEVEL 0" + level;
+
+            // Generate Data
+            let items = [];
+            for(let i=0; i<TOTAL_CELLS; i++) {
+                let p = generateProblem(level);
+                // Determine Mode
+                let mode = type;
+                if(type === 'mix') mode = Math.random() < 0.5 ? 'frac' : 'dec';
+                p.mode = mode; // 'frac' means Task is fraction, Answer is decimal
+                items.push(p);
+            }
+
+            // Shuffle for Snake Grid (Solutions)
+            let snakeItems = [...items].sort(() => Math.random() - 0.5);
+            // Shuffle for Task Grid (Questions)
+            let taskItems = [...items].sort(() => Math.random() - 0.5);
+
+            // Targets
+            const sBoardP = document.getElementById('snakeBoardPrint');
+            const tBoardP = document.getElementById('taskBoardPrint');
+            const sBoardD = document.getElementById('snakeBoardDigital');
+            const tBoardD = document.getElementById('taskBoardDigital');
+
+            // Clear
+            [sBoardP, tBoardP, sBoardD, tBoardD].forEach(b => b.innerHTML = '');
+
+            // RENDER
+            
+            // 1. SNAKE GRID (Solutions)
+            snakeItems.forEach(item => {
+                // Content based on mode
+                // if p.mode is 'frac', task was fraction, so solution is decimal
+                // if p.mode is 'dec', task was decimal, so solution is fraction
+                let content = item.mode === 'frac' ? item.decStr : createFraction(item.num, item.den);
+                
+                // Print Element
+                let divP = document.createElement('div');
+                divP.className = 'cell snake-cell cyber-border';
+                divP.innerHTML = content;
+                sBoardP.appendChild(divP);
+
+                // Digital Element
+                let divD = document.createElement('div');
+                divD.className = 'cell snake-cell rounded shadow-sm font-bold text-xl';
+                divD.innerHTML = content;
+                divD.onclick = () => handleInteraction('snake', item.val, divD);
+                sBoardD.appendChild(divD);
+            });
+
+            // 2. TASK GRID (Questions)
+            taskItems.forEach(item => {
+                let content = item.mode === 'frac' ? createFraction(item.num, item.den) : item.decStr;
+                
+                // Print Element
+                let divP = document.createElement('div');
+                divP.className = 'cell task-cell';
+                divP.innerHTML = content;
+                tBoardP.appendChild(divP);
+
+                // Digital Element
+                let divD = document.createElement('div');
+                divD.className = 'cell task-cell rounded shadow-sm text-lg bg-slate-50';
+                divD.innerHTML = content;
+                divD.onclick = () => handleInteraction('task', item.val, divD);
+                tBoardD.appendChild(divD);
+            });
+
+            // Draw Print Lines
+            drawPrintLines();
+        }
+
+        function drawPrintLines() {
+            // Simplified winding path for print background
+            const svg = document.getElementById('snakeLines');
+            svg.innerHTML = '';
+            
+            // Logic to draw a line through center of grid cells 0->47 winding
+            // This is just visual fluff for print
+            let d = "";
+            let w = 100 / 8; // 8 cols
+            let h = 100 / 6; // 6 rows
+            
+            for(let r=0; r<6; r++) {
+                let y = r * h + h/2;
+                if(r%2===0) {
+                    d += `M ${w/2} ${y} L ${100 - w/2} ${y} `; // Left to Right
+                    if(r < 5) d += `L ${100 - w/2} ${y + h} `; // Down connector
+                } else {
+                    d += `M ${100 - w/2} ${y} L ${w/2} ${y} `; // Right to Left
+                    if(r < 5) d += `L ${w/2} ${y + h} `; // Down connector
+                }
+            }
+            
+            // Create Path
+            let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", d);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "#e5e5e5");
+            path.setAttribute("stroke-width", "4"); // Percentage relative roughly
+            // vector-effect="non-scaling-stroke" helps if using viewbox, here using percentages in d is tricky without viewbox
+            // Let's use simpler absolute coords assuming 100x100 viewbox
+            svg.setAttribute("viewBox", "0 0 100 100");
+            svg.setAttribute("preserveAspectRatio", "none");
+            svg.appendChild(path);
+        }
+
+        // Init
+        // Check localstorage or default?
+        setMode('print');
+
+    </script>
+</body>
+</html>
