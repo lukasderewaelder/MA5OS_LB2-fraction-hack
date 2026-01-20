@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBER HACK - Math Battle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME FONTS --- */
+        .font-tech { font-family: 'Roboto Mono', monospace; }
+        .font-hud { font-family: 'Rajdhani', sans-serif; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #334155; 
+            margin: 0;
+            overflow: hidden; 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* --- CELL STYLING --- */
+        .cell {
+            background: white;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1rem;
+            position: relative;
+            transition: all 0.2s;
+            aspect-ratio: 1.3;
+        }
+        
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 4px; height: 4px;
+            background: #94a3b8;
+            clip-path: polygon(100% 0, 0 0, 100% 100%);
+        }
+
+        .snake-cell { border: 2px solid #000; font-weight: bold; }
+        .task-cell { border: 1px dashed #666; color: #444; }
+
+        /* --- INTERACTIVE / DIGITAL --- */
+        .interactive-mode .cell { cursor: pointer; font-size: 1.25rem; aspect-ratio: unset; min-height: 60px; }
+        .interactive-mode .cell:hover {
+            background-color: #e5e5e5;
+            transform: translateY(-2px);
+            z-index: 10;
+            border-color: #000;
+        }
+
+        .player-red .cell:hover { border-color: #ef4444; color: #dc2626; box-shadow: 0 4px 0 rgba(239,68,68,0.2); }
+        .player-blue .cell:hover { border-color: #3b82f6; color: #2563eb; box-shadow: 0 4px 0 rgba(59,130,246,0.2); }
+
+        .selected { background-color: #ddd !important; border: 2px solid #000 !important; transform: scale(0.95); }
+        
+        .matched-red { background-color: #fee2e2 !important; border-color: #dc2626 !important; color: #991b1b !important; pointer-events: none; }
+        .matched-blue { background-color: #dbeafe !important; border-color: #2563eb !important; color: #1e40af !important; pointer-events: none; }
+        
+        .wrong { background-color: #fee2e2; animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite; }
+
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        /* --- PRINT PREVIEW WRAPPER (Screen Only) --- */
+        #previewWrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+            background-color: #e2e8f0;
+        }
+
+        /* --- A4 PAPER STYLING (Screen & Print Shared Logic) --- */
+        #printContainer {
+            width: 210mm;
+            height: 296mm; /* Keep just under 297mm to prevent overflow */
+            background: white;
+            padding: 10mm;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transform-origin: center center;
+            box-sizing: border-box;
+        }
+        
+        /* Grid styling specifically for print/preview A4 context */
+        #printContainer .snake-grid, 
+        #printContainer .task-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px; /* Tighter gap */
+            width: 100%;
+        }
+        
+        /* FLATER CELLS FOR PRINT TO ENSURE VERTICAL FIT */
+        #printContainer .cell {
+            aspect-ratio: 1.7; /* Even flatter to ensure fit on any printer margin */
+            font-size: 10pt;
+        }
+
+        /* --- PRINT OPTIMIZATION (Actual Print) --- */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            
+            html, body {
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 0;
+                overflow: hidden !important;
+                background: white;
+            }
+
+            /* Hide UI */
+            .no-print, .digital-layout, #digitalHud, #previewWrapper { 
+                display: none !important; 
+            }
+
+            /* Reset Preview Wrapper constraints */
+            #previewWrapper {
+                display: block !important;
+                padding: 0;
+                background: none;
+                height: auto;
+                overflow: visible;
+                position: static;
+            }
+
+            /* Show Print Container properly */
+            #printContainer {
+                display: flex !important;
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 210mm;
+                height: 297mm;
+                margin: 0;
+                padding: 8mm; /* Safe print margin */
+                box-shadow: none;
+                transform: none !important; /* Reset scaling */
+                z-index: 9999;
+                visibility: visible;
+            }
+            
+            /* Helper to hide everything else */
+            body * {
+                visibility: hidden;
+            }
+            #printContainer, #printContainer * {
+                visibility: visible;
+            }
+            
+            .print-ui-only { display: block !important; }
+        }
+
+        /* --- DIGITAL LAYOUT --- */
+        .digital-layout { display: none; }
+        
+        .interactive-mode .digital-layout {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+            gap: 16px;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #f0f0f0;
+        }
+
+        .interactive-mode .snake-grid, 
+        .interactive-mode .task-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); 
+            gap: 8px;
+            align-content: start;
+        }
+        
+        /* Fractions */
+        .fraction-container { display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .fraction { display: inline-block; text-align: center; vertical-align: middle; margin: 0 0.1em; line-height: 1; }
+        .fraction > span { display: block; padding: 0; }
+        .fraction span.numerator { border-bottom: 2px solid currentColor; font-weight: 500; padding-bottom: 1px; }
+        .fraction span.denominator { border-top: 0px; font-weight: 500; padding-top: 1px; }
+        .mixed-int { font-size: 1.2em; font-weight: bold; }
+    </style>
+</head>
+<body class="overflow-hidden">
+
+    <!-- HEADER / CONTROLS -->
+    <div class="no-print bg-slate-900 w-full p-3 text-white shadow-lg z-50 border-b border-slate-700 shrink-0">
+        <div class="w-full max-w-[1800px] mx-auto flex flex-col xl:flex-row justify-between items-center gap-3">
+            
+            <!-- Logo & Mode Switch -->
+            <div class="flex items-center gap-3 shrink-0 w-full xl:w-auto justify-between xl:justify-start">
+                <h1 class="font-hud text-xl md:text-2xl text-green-400 font-bold border-r pr-4 border-slate-700 whitespace-nowrap">CYBER HACK</h1>
+                <div class="flex bg-slate-800 rounded p-1">
+                    <button onclick="setMode('print')" id="btnPrintMode" class="px-3 py-1 rounded font-hud font-bold text-xs md:text-sm bg-green-500 text-black">DRUCK</button>
+                    <button onclick="setMode('digital')" id="btnDigitalMode" class="px-3 py-1 rounded font-hud font-bold text-xs md:text-sm text-slate-400 hover:text-white">DIGITAL</button>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="flex flex-wrap justify-center xl:justify-end items-center gap-2 w-full text-xs md:text-sm">
+                
+                <div class="flex flex-col items-start w-[48%] md:w-auto">
+                    <label class="text-[9px] text-gray-400 font-tech font-bold uppercase">Schwierigkeit</label>
+                    <select id="levelSelect" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded font-tech text-green-400 w-full md:w-36">
+                        <option value="1">Level 1 (Tausendstel)</option>
+                        <option value="2">Level 2 (Erweitert)</option>
+                        <option value="3">Level 3 (Experte)</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-col items-start w-[48%] md:w-auto">
+                    <label class="text-[9px] text-gray-400 font-tech font-bold uppercase">Aufgaben</label>
+                    <select id="typeSelect" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded font-tech text-blue-400 w-full md:w-32">
+                        <option value="mix">Gemischt</option>
+                        <option value="frac">Brüche &rarr; Dezimal</option>
+                        <option value="dec">Dezimal &rarr; Brüche</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col items-start w-[30%] md:w-auto">
+                    <label class="text-[9px] text-gray-400 font-tech font-bold uppercase">Darstellung</label>
+                    <label class="flex items-center gap-2 font-tech text-gray-300 cursor-pointer h-[29px] px-2 bg-slate-800 border border-slate-700 rounded w-full hover:bg-slate-700 whitespace-nowrap">
+                        <input type="checkbox" id="mixedNotationCheck" class="accent-green-500">
+                        Gemischt
+                    </label>
+                </div>
+
+                <div class="flex flex-col items-start w-[30%] md:w-auto" id="turnModeContainer" style="display:none;">
+                    <label class="text-[9px] text-gray-400 font-tech font-bold uppercase">Modus</label>
+                    <select id="turnModeSelect" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded font-tech text-yellow-400 w-full md:w-32">
+                        <option value="sync">SYNC (Wechsel)</option>
+                        <option value="burst">BURST (Serie)</option>
+                    </select>
+                </div>
+
+                <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0 justify-end h-[29px] self-end">
+                    <button onclick="generateGame()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded font-bold transition border border-slate-600">
+                        RESET
+                    </button>
+                    <button onclick="window.print()" id="btnPrintAction" class="bg-white hover:bg-gray-200 text-black px-4 rounded font-bold transition border border-white" title="Drucken">
+                        🖨️
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIGITAL HUD -->
+    <div id="digitalHud" class="hidden w-full bg-slate-800 border-b-4 border-slate-900 py-1 mb-0 text-white font-hud no-print shrink-0">
+        <div class="w-full px-4 flex justify-between items-center">
+            <!-- P1 -->
+            <div id="pRedBox" class="flex flex-col items-center bg-slate-900 px-4 py-1 rounded border-l-4 border-red-500 w-32 transition-all opacity-50">
+                <span class="text-[10px] uppercase tracking-widest text-red-400">ROT</span>
+                <span class="text-2xl font-bold leading-none" id="scoreRed">0</span>
+            </div>
+            <!-- MSG -->
+            <div class="flex-grow text-center px-2">
+                <div id="turnMessage" class="font-tech text-lg md:text-xl text-yellow-400 animate-pulse truncate">START...</div>
+            </div>
+            <!-- P2 -->
+            <div id="pBlueBox" class="flex flex-col items-center bg-slate-900 px-4 py-1 rounded border-r-4 border-blue-500 w-32 transition-all opacity-50">
+                <span class="text-[10px] uppercase tracking-widest text-blue-400">BLAU</span>
+                <span class="text-2xl font-bold leading-none" id="scoreBlue">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PREVIEW WRAPPER FOR PRINT MODE (Centers and Scales A4) -->
+    <div id="previewWrapper" class="no-print">
+        <!-- PRINT CONTAINER (Visual A4 Page) -->
+        <div id="printContainer" class="page-container hidden flex-col bg-white">
+            
+            <!-- Header -->
+            <div class="border-b-4 border-black pb-2 mb-2 flex justify-between items-end print-ui-only">
+                <div>
+                    <h1 class="font-hud text-3xl font-bold tracking-tighter">CYBER HACK <span class="text-base font-normal text-gray-600 block">DATA DECRYPTION PROTOCOL</span></h1>
+                </div>
+                <div class="text-right">
+                    <div class="font-tech border-2 border-black px-2 py-1 text-sm font-bold uppercase" id="printLevelLabel">Level 1</div>
+                </div>
+            </div>
+
+            <!-- Rules -->
+            <div class="border-l-4 border-black pl-3 py-1 mb-3 text-xs font-hud leading-tight text-gray-700 print-ui-only bg-gray-50">
+                <span class="font-bold bg-black text-white px-1">MISSION:</span> 
+                Spielt zu zweit (Rot vs. Blau). 
+                1. Wählt eine Aufgabe aus dem <strong>Daten-Raster</strong> (oben). 
+                2. Sucht die Lösung im <strong>Netzwerk</strong> (unten). 
+                3. Markiert das Lösungsfeld in eurer Farbe. Wer die längste zusammenhängende Datenkette (Snake) bildet, gewinnt!
+            </div>
+
+            <!-- Task Board (Top) -->
+            <div class="print-layout-section flex-grow mb-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="h-2 w-2 border-2 border-black"></div>
+                    <h2 class="font-tech text-base font-bold uppercase">Daten-Raster (Aufgaben)</h2>
+                    <div class="h-[1px] bg-black flex-grow border-t border-dashed"></div>
+                </div>
+                <div id="taskBoardPrint" class="task-grid"></div>
+            </div>
+
+            <!-- Snake Board (Bottom) -->
+            <div class="flex-grow relative print-layout-section">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="h-2 w-2 bg-black"></div>
+                    <h2 class="font-tech text-base font-bold uppercase">Netzwerk (Lösungen)</h2>
+                    <div class="h-[1px] bg-black flex-grow"></div>
+                </div>
+                
+                <div class="relative flex-grow flex flex-col">
+                    <svg id="snakeLines" class="absolute inset-0 w-full h-full pointer-events-none opacity-20" style="z-index: 0;"></svg>
+                    <div id="snakeBoardPrint" class="snake-grid"></div>
+                </div>
+            </div>
+
+            <div class="text-center text-[9px] font-mono text-gray-400 mt-1 print-ui-only">
+                GENERATED_BY_AI // SYSTEM_READY
+            </div>
+        </div>
+    </div>
+
+    <!-- DIGITAL CONTAINER -->
+    <div id="digitalContainer" class="digital-layout hidden">
+        <!-- Tasks (Left) -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow border-t-4 border-gray-400 overflow-hidden h-full">
+            <div class="bg-gray-100 p-2 text-center border-b border-gray-200">
+                <h2 class="font-tech text-gray-600 text-sm font-bold">/// QUELL-DATEN</h2>
+            </div>
+            <div id="taskBoardDigital" class="task-grid p-2 h-full overflow-y-auto"></div>
+        </div>
+
+        <!-- Solutions (Right) -->
+        <div class="flex-1 flex flex-col bg-white rounded-lg shadow border-t-4 border-black overflow-hidden h-full">
+            <div class="bg-gray-100 p-2 text-center border-b border-gray-200">
+                <h2 class="font-tech text-black text-sm font-bold">/// ZIEL-NETZWERK</h2>
+            </div>
+            <div id="snakeBoardDigital" class="snake-grid p-2 h-full overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const ROWS_PRINT = 6;
+        const COLS_PRINT = 8;
+        const ROWS_DIGI = 4;
+        const COLS_DIGI = 6;
+
+        let TOTAL_CELLS; 
+        
+        // --- STATE ---
+        let currentMode = 'print'; 
+        let turn = 'red'; 
+        let scores = { red: 0, blue: 0 };
+        let selection = null;
+        let isLocked = false;
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // --- RENDER HELPERS ---
+        function createFraction(n, d) {
+            return `<div class="fraction"><span class="numerator">${n}</span><span class="denominator">${d}</span></div>`;
+        }
+
+        function createMixedFraction(intPart, n, d) {
+            return `
+                <div class="fraction-container">
+                    <span class="mixed-int">${intPart}</span>
+                    <div class="fraction">
+                        <span class="numerator">${n}</span>
+                        <span class="denominator">${d}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            const body = document.body;
+            const previewWrapper = document.getElementById('previewWrapper');
+            const printCont = document.getElementById('printContainer');
+            const digiCont = document.getElementById('digitalContainer');
+            const digiHud = document.getElementById('digitalHud');
+            const btnPrint = document.getElementById('btnPrintMode');
+            const btnDigi = document.getElementById('btnDigitalMode');
+            const printActionBtn = document.getElementById('btnPrintAction');
+            const turnModeContainer = document.getElementById('turnModeContainer');
+
+            if (mode === 'digital') {
+                body.classList.add('interactive-mode');
+                
+                previewWrapper.style.display = 'none'; 
+                printCont.style.display = 'none';
+                
+                digiCont.style.display = 'flex';
+                digiHud.classList.remove('hidden');
+                turnModeContainer.style.display = 'flex';
+                
+                btnDigi.className = "px-3 py-1 rounded font-hud font-bold text-xs md:text-sm bg-blue-500 text-white shadow shadow-blue-500/50";
+                btnPrint.className = "px-3 py-1 rounded font-hud font-bold text-xs md:text-sm text-slate-400 hover:text-white";
+                printActionBtn.style.display = 'none';
+
+                document.getElementById('snakeBoardDigital').style.gridTemplateColumns = `repeat(${COLS_DIGI}, 1fr)`;
+                document.getElementById('taskBoardDigital').style.gridTemplateColumns = `repeat(${COLS_DIGI}, 1fr)`;
+                
+                window.removeEventListener('resize', fitPaperToScreen);
+
+            } else {
+                body.classList.remove('interactive-mode');
+                
+                previewWrapper.style.display = 'flex'; 
+                printCont.style.display = 'flex';
+                
+                digiCont.style.display = 'none';
+                digiHud.classList.add('hidden');
+                turnModeContainer.style.display = 'none';
+
+                btnPrint.className = "px-3 py-1 rounded font-hud font-bold text-xs md:text-sm bg-green-500 text-black shadow shadow-green-500/50";
+                btnDigi.className = "px-3 py-1 rounded font-hud font-bold text-xs md:text-sm text-slate-400 hover:text-white";
+                printActionBtn.style.display = 'block';
+                
+                window.addEventListener('resize', fitPaperToScreen);
+                setTimeout(fitPaperToScreen, 0); 
+            }
+            
+            generateGame(); 
+        }
+        
+        function fitPaperToScreen() {
+            if (currentMode !== 'print') return;
+            
+            const wrapper = document.getElementById('previewWrapper');
+            const paper = document.getElementById('printContainer');
+            
+            const availW = wrapper.clientWidth - 40; 
+            const availH = wrapper.clientHeight - 40;
+            
+            const paperW = paper.offsetWidth; 
+            const paperH = paper.offsetHeight; 
+            
+            const scaleX = availW / paperW;
+            const scaleY = availH / paperH;
+            
+            const scale = Math.min(scaleX, scaleY, 1); 
+            
+            paper.style.transform = `scale(${scale})`;
+        }
+
+        function updateTurnUI() {
+            const redBox = document.getElementById('pRedBox');
+            const blueBox = document.getElementById('pBlueBox');
+            const msg = document.getElementById('turnMessage');
+            const body = document.body;
+
+            document.getElementById('scoreRed').innerText = scores.red;
+            document.getElementById('scoreBlue').innerText = scores.blue;
+
+            body.classList.remove('player-red', 'player-blue');
+
+            if (turn === 'red') {
+                redBox.style.opacity = '1'; redBox.style.transform = 'scale(1.05)';
+                blueBox.style.opacity = '0.4'; blueBox.style.transform = 'scale(1)';
+                msg.innerText = "ROT // HACKT";
+                msg.className = "font-tech text-lg md:text-xl text-red-500 animate-pulse truncate";
+                body.classList.add('player-red');
+            } else {
+                blueBox.style.opacity = '1'; blueBox.style.transform = 'scale(1.05)';
+                redBox.style.opacity = '0.4'; redBox.style.transform = 'scale(1)';
+                msg.innerText = "BLAU // HACKT";
+                msg.className = "font-tech text-lg md:text-xl text-blue-500 animate-pulse truncate";
+                body.classList.add('player-blue');
+            }
+        }
+
+        function handleInteraction(type, val, element) {
+            if (currentMode !== 'digital' || isLocked) return;
+            if (element.classList.contains('matched-red') || element.classList.contains('matched-blue')) return;
+
+            if (selection && selection.el === element) {
+                element.classList.remove('selected');
+                selection = null;
+                return;
+            }
+
+            element.classList.add('selected');
+
+            if (!selection) {
+                selection = { type, val, el: element };
+            } else {
+                if (selection.type === type) {
+                    selection.el.classList.remove('selected');
+                    selection = { type, val, el: element };
+                    return;
+                }
+
+                isLocked = true;
+                const match = Math.abs(selection.val - val) < 0.000001;
+                const turnProtocol = document.getElementById('turnModeSelect').value; 
+
+                if (match) {
+                    const matchedClass = turn === 'red' ? 'matched-red' : 'matched-blue';
+                    selection.el.classList.remove('selected');
+                    element.classList.remove('selected');
+                    
+                    selection.el.classList.add(matchedClass);
+                    element.classList.add(matchedClass);
+                    
+                    scores[turn]++;
+                    
+                    if (scores.red + scores.blue === TOTAL_CELLS) {
+                        document.getElementById('turnMessage').innerText = scores.red > scores.blue ? "ROT SIEGT!" : "BLAU SIEGT!";
+                    } else {
+                        if (turnProtocol === 'burst') {
+                            document.getElementById('turnMessage').innerText = "ERFOLG! NOCHMAL!";
+                            setTimeout(() => { isLocked = false; updateTurnUI(); }, 800);
+                        } else {
+                            document.getElementById('turnMessage').innerText = "ERFOLG! WECHSEL!";
+                            setTimeout(() => {
+                                selection = null;
+                                turn = turn === 'red' ? 'blue' : 'red';
+                                updateTurnUI();
+                                isLocked = false;
+                            }, 800);
+                        }
+                    }
+                    selection = null;
+                } else {
+                    selection.el.classList.add('wrong');
+                    element.classList.add('wrong');
+                    document.getElementById('turnMessage').innerText = "FEHLER!";
+                    document.getElementById('turnMessage').className = "font-tech text-lg md:text-xl text-gray-500";
+
+                    setTimeout(() => {
+                        selection.el.classList.remove('selected', 'wrong');
+                        element.classList.remove('selected', 'wrong');
+                        selection = null;
+                        turn = turn === 'red' ? 'blue' : 'red';
+                        updateTurnUI();
+                        isLocked = false;
+                    }, 1000);
+                }
+            }
+        }
+
+        // --- PROBLEM GENERATION LOGIC ---
+
+        function createProblemValues(level, enableMixed) {
+             let denominator, numerator;
+             
+             // --- BASE GENERATION ---
+             if (level === 1) {
+                const denoms = [10, 100, 1000];
+                denominator = denoms[Math.floor(Math.random()*denoms.length)];
+                numerator = Math.random() < 0.8 ? getRandomInt(1, denominator - 1) : getRandomInt(denominator + 1, denominator * 2);
+             } 
+             else if (level >= 2) {
+                const denoms = [10, 100, 1000, 10000];
+                denominator = denoms[Math.floor(Math.random()*denoms.length)];
+                if (level === 2) numerator = Math.random() < 0.5 ? getRandomInt(1, denominator) : getRandomInt(denominator + 1, denominator * 4);
+                else numerator = Math.random() < 0.3 ? getRandomInt(1, denominator-1) : getRandomInt(denominator+1, denominator*10);
+             }
+
+             if(numerator <= 0) numerator = 1;
+
+             // --- EXPANSION ---
+             if (level >= 2 && Math.random() < 0.4) {
+                 let possibleMultipliers = [];
+                 if (denominator <= 1000) possibleMultipliers.push(10);
+                 if (denominator <= 100) possibleMultipliers.push(100);
+                 if (denominator <= 10) possibleMultipliers.push(1000);
+                 if (possibleMultipliers.length > 0) {
+                     const multiplier = possibleMultipliers[Math.floor(Math.random() * possibleMultipliers.length)];
+                     numerator *= multiplier;
+                     denominator *= multiplier;
+                 }
+             }
+             
+             return { num: numerator, den: denominator };
+        }
+
+        function constructProblemObject(num, den, enableMixed) {
+             let val = num / den;
+             let useMixed = false;
+             let intPart = 0;
+             let remNum = num;
+             
+             if (enableMixed && val > 1 && val % 1 !== 0 && Math.random() < 0.5) {
+                 useMixed = true;
+                 intPart = Math.floor(val);
+                 remNum = num % den;
+             }
+
+             let decStr = val.toFixed(4).replace('.', ','); 
+             if(decStr.indexOf(',') > -1) {
+                 while(decStr.endsWith('0')) decStr = decStr.slice(0,-1);
+                 if(decStr.endsWith(',')) decStr = decStr.slice(0,-1);
+             }
+
+             return { num, den, decStr, val, useMixed, intPart, remNum };
+        }
+
+        function generateGame() {
+            scores = { red: 0, blue: 0 };
+            turn = 'red';
+            selection = null;
+            isLocked = false;
+            updateTurnUI();
+
+            const level = parseInt(document.getElementById('levelSelect').value);
+            const type = document.getElementById('typeSelect').value;
+            const mixedEnabled = document.getElementById('mixedNotationCheck').checked;
+            
+            document.getElementById('printLevelLabel').innerText = "LEVEL 0" + level;
+
+            let rows, cols;
+            if (currentMode === 'print') {
+                rows = ROWS_PRINT;
+                cols = COLS_PRINT;
+            } else {
+                rows = ROWS_DIGI;
+                cols = COLS_DIGI;
+            }
+            TOTAL_CELLS = rows * cols;
+
+            // --- GENERATION WITH UNIQUENESS & DISTRACTORS ---
+            let items = [];
+            let uniqueValues = new Set();
+            let attempts = 0;
+
+            while (items.length < TOTAL_CELLS && attempts < 1000) {
+                attempts++;
+                
+                let num, den;
+                let isDistractor = false;
+
+                // 1. Try to generate a "Distractor" (similar to previous) occasionally
+                if (items.length > 0 && Math.random() < 0.35) {
+                    // Pick a random existing item to base distractor on
+                    let base = items[Math.floor(Math.random() * items.length)];
+                    
+                    // Distractor Logic: Shift decimal / Change Denom
+                    // Case A: 3/10 -> 3/100 (Shift down)
+                    if (Math.random() < 0.5) {
+                        num = base.num;
+                        den = base.den * 10;
+                        if (den > 10000) den = 10000; // Cap
+                    } 
+                    // Case B: 3/10 -> 30/10 (Shift up / x10 val) - Risky if too big, check level
+                    else {
+                        num = base.num * 10;
+                        den = base.den;
+                        // Limit numerator somewhat to keep manageable
+                        if (num > den * 10) num = Math.floor(base.num / 10) || 1; 
+                    }
+                    isDistractor = true;
+                } 
+                else {
+                    // Standard Generation
+                    let raw = createProblemValues(level, mixedEnabled);
+                    num = raw.num;
+                    den = raw.den;
+                }
+
+                // 2. Check Uniqueness (Strict mathematical value)
+                let val = num / den;
+                let valKey = val.toFixed(6); // Use precision string as key
+
+                if (!uniqueValues.has(valKey)) {
+                    uniqueValues.add(valKey);
+                    
+                    let p = constructProblemObject(num, den, mixedEnabled);
+                    
+                    // Determine display mode
+                    let mode = type;
+                    if(type === 'mix') mode = Math.random() < 0.5 ? 'frac' : 'dec';
+                    p.mode = mode; 
+                    
+                    items.push(p);
+                }
+            }
+
+            // Shuffle
+            let snakeItems = [...items].sort(() => Math.random() - 0.5);
+            let taskItems = [...items].sort(() => Math.random() - 0.5);
+
+            const sBoardP = document.getElementById('snakeBoardPrint');
+            const tBoardP = document.getElementById('taskBoardPrint');
+            const sBoardD = document.getElementById('snakeBoardDigital');
+            const tBoardD = document.getElementById('taskBoardDigital');
+
+            if (currentMode === 'print') {
+                sBoardP.innerHTML = ''; tBoardP.innerHTML = '';
+            } else {
+                sBoardD.innerHTML = ''; tBoardD.innerHTML = '';
+            }
+
+            const renderCell = (item, isSnake, container) => {
+                let content = "";
+                let showFraction = false;
+                if (isSnake) {
+                    if (item.mode === 'frac') showFraction = false; // Dec
+                    else showFraction = true; // Frac
+                } else {
+                    if (item.mode === 'frac') showFraction = true; // Frac
+                    else showFraction = false; // Dec
+                }
+
+                if (showFraction) {
+                    if (item.useMixed) content = createMixedFraction(item.intPart, item.remNum, item.den);
+                    else content = createFraction(item.num, item.den);
+                } else {
+                    content = item.decStr;
+                }
+
+                let div = document.createElement('div');
+                div.className = isSnake ? 'cell snake-cell' : 'cell task-cell';
+                if (isSnake) div.classList.add('cyber-border');
+                if (currentMode === 'digital') div.classList.add('shadow-sm', 'font-bold', 'text-xl');
+                div.innerHTML = content;
+                
+                if (currentMode === 'digital') {
+                    div.onclick = () => handleInteraction(isSnake ? 'snake' : 'task', item.val, div);
+                }
+
+                container.appendChild(div);
+            };
+
+            if (currentMode === 'print') {
+                snakeItems.forEach(item => renderCell(item, true, sBoardP));
+                taskItems.forEach(item => renderCell(item, false, tBoardP));
+                drawPrintLines(rows, cols);
+            } else {
+                snakeItems.forEach(item => renderCell(item, true, sBoardD));
+                taskItems.forEach(item => renderCell(item, false, tBoardD));
+            }
+            
+            if (currentMode === 'print') fitPaperToScreen();
+        }
+
+        function drawPrintLines(rows, cols) {
+            const svg = document.getElementById('snakeLines');
+            svg.innerHTML = '';
+            
+            let d = "";
+            let w = 100 / cols; 
+            let h = 100 / rows; 
+            
+            for(let r=0; r<rows; r++) {
+                let y = r * h + h/2;
+                if(r%2===0) {
+                    d += `M ${w/2} ${y} L ${100 - w/2} ${y} `; 
+                    if(r < rows-1) d += `L ${100 - w/2} ${y + h} `; 
+                } else {
+                    d += `M ${100 - w/2} ${y} L ${w/2} ${y} `; 
+                    if(r < rows-1) d += `L ${w/2} ${y + h} `; 
+                }
+            }
+            
+            let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", d);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "#e5e5e5");
+            path.setAttribute("stroke-width", "4"); 
+            svg.setAttribute("viewBox", "0 0 100 100");
+            svg.setAttribute("preserveAspectRatio", "none");
+            svg.appendChild(path);
+        }
+
+        // Init
+        setMode('print');
+
+    </script>
+</body>
+</html>
